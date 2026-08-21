@@ -250,10 +250,10 @@ DELIMITER //
 
 CREATE PROCEDURE `2026201061_PopulateRequestorStatistics`()
 BEGIN
-    -- 1. Correctly reset target table
+    -- 1. Reset target table
     TRUNCATE TABLE `2026201061_requestorstatistics`;
 
-    -- 2. Populate basic aggregated metrics with unique grouping keys
+    -- 2. Populate basic aggregated metrics
     INSERT INTO `2026201061_requestorstatistics` (
         OrderRequestorID,
         MonthofOrder,
@@ -287,10 +287,17 @@ BEGIN
     -- 3. Update Most Used PIN
     UPDATE `2026201061_requestorstatistics` rs
     JOIN (
-        SELECT OrderRequestorID, MONTH(Timestamp) AS m, YEAR(Timestamp) AS y, PINCode
+        SELECT OrderRequestorID, m, y, PINCode
         FROM (
-            SELECT OrderRequestorID, Timestamp, PINCode,
-                   ROW_NUMBER() OVER (PARTITION BY OrderRequestorID, MONTH(Timestamp), YEAR(Timestamp) ORDER BY COUNT(*) DESC) as rn
+            SELECT 
+                OrderRequestorID, 
+                MONTH(Timestamp) AS m, 
+                YEAR(Timestamp) AS y, 
+                PINCode,
+                ROW_NUMBER() OVER (
+                    PARTITION BY OrderRequestorID, MONTH(Timestamp), YEAR(Timestamp) 
+                    ORDER BY COUNT(*) DESC
+                ) as rn
             FROM `2026201061_delivery_data_pins_stg`
             GROUP BY OrderRequestorID, MONTH(Timestamp), YEAR(Timestamp), PINCode
         ) sub_pin
@@ -301,10 +308,17 @@ BEGIN
     -- 4. Update Most Frequent Partner
     UPDATE `2026201061_requestorstatistics` rs
     JOIN (
-        SELECT OrderRequestorID, MONTH(Timestamp) AS m, YEAR(Timestamp) AS y, PartnerID
+        SELECT OrderRequestorID, m, y, PartnerID
         FROM (
-            SELECT OrderRequestorID, Timestamp, PartnerID,
-                   ROW_NUMBER() OVER (PARTITION BY OrderRequestorID, MONTH(Timestamp), YEAR(Timestamp) ORDER BY COUNT(*) DESC) as rn
+            SELECT 
+                OrderRequestorID, 
+                MONTH(Timestamp) AS m, 
+                YEAR(Timestamp) AS y, 
+                PartnerID,
+                ROW_NUMBER() OVER (
+                    PARTITION BY OrderRequestorID, MONTH(Timestamp), YEAR(Timestamp) 
+                    ORDER BY COUNT(*) DESC
+                ) as rn
             FROM `2026201061_delivery_data_pins_stg`
             WHERE PartnerID IS NOT NULL AND PartnerID != ''
             GROUP BY OrderRequestorID, MONTH(Timestamp), YEAR(Timestamp), PartnerID
@@ -319,3 +333,5 @@ DELIMITER ;
 
 -- Run procedure
 CALL `2026201061_PopulateRequestorStatistics`();
+
+select count(*) from 2026201061_requestorstatistics;
